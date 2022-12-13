@@ -160,12 +160,15 @@ void serve_static(int fd, char *filename, int filesize)
   printf("Response headers:\n");
   printf("%s", buf);
 
-  /* Send response body to client */
-  srcfd = Open(filename, O_RDONLY, 0);
-  srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0);
+   /* Send response body to client */
+  srcfd = Open(filename,O_RDONLY, 0);
+  srcp = (char *)Malloc(filesize);
+  //rio_readn 함수는 descriptor fd의 현재 파일 위치에서 메모리 위치 usrbuff로 최대 n바이트를 전송한다.
+  Rio_readn(srcfd, srcp, filesize);
   Close(srcfd);
+  //rio_writen 함수는 usrbuf에서 descriptor fd로 n바이트로 전송한다.
   Rio_writen(fd, srcp, filesize);
-  Munmap(srcp, filesize);
+  Free(srcp);
 }
 
 /* get_filetype - Derive file type from filename */
@@ -180,6 +183,8 @@ void get_filetype(char *filename, char *filetype)
       strcpy(filetype, "image/png");
     else if (strstr(filename, ".jpg"))
       strcpy(filetype, "image/jpeg");
+    else if (strstr(filename, ".mp4"))
+      strcpy(filetype, "video/mp4");
     else
       strcpy(filetype, "text/plain");
 }
