@@ -134,7 +134,7 @@ int parse_uri(char *uri, char *filename, char *cgiargs)
     ptr = index(uri, '?');
     if (ptr) {
       strcpy(cgiargs, ptr +1);
-      *ptr = '\0'
+      *ptr = '\0';
     }
     else
       strcpy(cgiargs, "");
@@ -182,4 +182,23 @@ void get_filetype(char *filename, char *filetype)
       strcpy(filetype, "image/jpeg");
     else
       strcpy(filetype, "text/plain");
+}
+
+void serve_dynamic(int fd, char *filename, char *cgiargs)
+{
+  char buf[MAXLINE], *emptylist[] = { NULL };
+
+  /* Return  first part of HTTP response */
+  sprintf(buf, "HTTP/1.0 200 OK\r\n");
+  Rio_writen(fd, buf, strlen(buf));
+  sprintf(buf, "Server: Tiny Web Server\r\n");
+  Rio_writen(fd, buf, strlen(buf));
+
+  if (Fork() == 0) {/* Child*/
+    /* Real server would set all CHI vars here*/
+    setenv("QUERY_STRING", cgiargs, 1);
+    Dup2(fd, STDOUT_FILENO);              /* Redirect stdout to client*/
+    Execve(filename, emptylist, environ); /* Run CHI program */
+  }
+  Wait(NULL); /* Parent waits for and reaps child */
 }
