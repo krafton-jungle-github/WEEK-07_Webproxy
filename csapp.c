@@ -834,6 +834,13 @@ static ssize_t rio_read(rio_t *rp, char *usrbuf, size_t n)
  * rio_readinitb - Associate a descriptor with a read buffer and reset buffer
  */
 /* $begin rio_readinitb */
+
+/* 
+! 1개의 빈 버퍼를 설정
+* rp->rio_fd = fd; - 각 fd별로 빈 버퍼를 설정
+* rp->rio_cnt = 0; - 읽은 버퍼의 길이
+* rp->rio_bufptr = rp->rio_buf; - 버퍼의 길이를 초기화(8192)
+*/
 void rio_readinitb(rio_t *rp, int fd) 
 {
     rp->rio_fd = fd;  
