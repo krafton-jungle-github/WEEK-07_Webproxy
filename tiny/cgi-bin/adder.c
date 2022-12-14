@@ -5,7 +5,7 @@
 #include "csapp.h"
 
 int main(void) {
-  char *buf, *p, *q;
+  char *buf, *p, *q, *method;
   char arg1[MAXLINE], arg2[MAXLINE], content[MAXLINE];
   int n1 = 0, n2 = 0;
 

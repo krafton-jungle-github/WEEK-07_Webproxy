@@ -32,10 +32,8 @@ int main(int argc, char **argv) {
   listenfd = Open_listenfd(argv[1]);
   while (1) {
     clientlen = sizeof(clientaddr);
-    connfd = Accept(listenfd, (SA *)&clientaddr,
-                    &clientlen);  // line:netp:tiny:accept
-    Getnameinfo((SA *)&clientaddr, clientlen, hostname, MAXLINE, port, MAXLINE,
-                0);
+    connfd = Accept(listenfd, (SA *)&clientaddr, &clientlen);  // line:netp:tiny:accept
+    Getnameinfo((SA *)&clientaddr, clientlen, hostname, MAXLINE, port, MAXLINE,0);
     printf("Accepted connection from (%s, %s)\n", hostname, port);
     doit(connfd);   // line:netp:tiny:doit
     Close(connfd);  // line:netp:tiny:close
@@ -55,7 +53,7 @@ void doit(int fd)
   printf("REquest headers: \n");
   printf("%s", buf);
   sscanf(buf, "%s %s %s", method, uri, version);
-  if (strcasecmp(method, "GET")){
+  if (strcasecmp(method, "GET") || strcasecmp(method, "HEAD")){
     clienterror(fd, method, "501", "Not implemented", "Tiny does not implement this method");
     return;
   }
@@ -74,14 +72,14 @@ void doit(int fd)
         clienterror(fd, filename, "403", "Forbidden", "Tiny couldn't read the file");
         return;
       }
-      serve_static(fd, filename, sbuf.st_size);
+      serve_static(fd, filename, sbuf.st_size, method);
   }
   else { /* Serve dynamic content */
       if (! (S_ISREG(sbuf.st_mode)) || !(S_IRUSR & sbuf.st_mode)) {
         clienterror(fd, filename, "403", "Forbidden", "Tiny couldn't run the CGI program");
         return;
       }
-      serve_dynamic(fd, filename, cgiargs);
+      serve_dynamic(fd, filename, cgiargs, method);
   }
 }
 
@@ -144,7 +142,7 @@ int parse_uri(char *uri, char *filename, char *cgiargs)
   }
 }
 
-void serve_static(int fd, char *filename, int filesize)
+void serve_static(int fd, char *filename, int filesize, char *method)
 {
   int srcfd;
   char *srcp, filetype[MAXLINE], buf[MAXLINE];
@@ -161,6 +159,9 @@ void serve_static(int fd, char *filename, int filesize)
   printf("%s", buf);
 
    /* Send response body to client */
+  if (strcasecmp(method,"HEAD") == 0) {
+    return;
+  }
   srcfd = Open(filename,O_RDONLY, 0);
   srcp = (char *)Malloc(filesize);
   //rio_readn 함수는 descriptor fd의 현재 파일 위치에서 메모리 위치 usrbuff로 최대 n바이트를 전송한다.
@@ -189,7 +190,7 @@ void get_filetype(char *filename, char *filetype)
       strcpy(filetype, "text/plain");
 }
 
-void serve_dynamic(int fd, char *filename, char *cgiargs)
+void serve_dynamic(int fd, char *filename, char *cgiargs, char *method)
 {
   char buf[MAXLINE], *emptylist[] = { NULL };
 
@@ -198,10 +199,12 @@ void serve_dynamic(int fd, char *filename, char *cgiargs)
   Rio_writen(fd, buf, strlen(buf));
   sprintf(buf, "Server: Tiny Web Server\r\n");
   Rio_writen(fd, buf, strlen(buf));
-
+  if (strcasecmp(method,"HEAD") != 0){
+    return;
+  }
   if (Fork() == 0) {/* Child*/
     /* Real server would set all CHI vars here*/
-    setenv("QUERY_STRING", cgiargs, 1);
+    setenv("QUERY_STRING", cgiargs, 1);   /*환경변수를 설정해준다. 이를 설정해서 실행프로그램으로 연결해주는 것.*/
     Dup2(fd, STDOUT_FILENO);              /* Redirect stdout to client*/
     Execve(filename, emptylist, environ); /* Run CHI program */
   }
